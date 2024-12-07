@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: ${DBUser}
+      POSTGRES_PASSWORD: ${DBPassword}
+      POSTGRES_DB: ${DBName}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U ${DBUser} -d ${DBName}
+      interval: 3s
+      timeout: 5s
+      retries: 5
+
+
+  user-service:
+    build:
+      context: store-users-service
+      dockerfile: Dockerfile
+    environment:
+      - DBHost=db
+      - DBPort=5432
+      - DBUser=${DBUser}
+      - DBPassword=${DBPassword}
+      - DBName=${DBName}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  product-service:
+    build:
+      context: store-products-service
+      dockerfile: Dockerfile
+    environment:
+      - DBHost=db
+      - DBPort=5432
+      - DBUser=${DBUser}
+      - DBPassword=${DBPassword}
+      - DBName=${DBName}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+
+  payment-service:
+    build:
+      context: store-payments-service
+      dockerfile: Dockerfile
+    environment:
+      - DBHost=db
+      - DBPort=5432
+      - DBUser=${DBUser}
+      - DBPassword=${DBPassword}
+      - DBName=${DBName}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8002:8002"
+
+  order-service:
+    build:
+      context: store-orders-service
+      dockerfile: Dockerfile
+    environment:
+      - DBHost=db
+      - DBPort=5432
+      - DBUser=${DBUser}
+      - DBPassword=${DBPassword}
+      - DBName=${DBName}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8003:8003"
+
+  api-gateway:
+    build:
+      context: store-api-gateway
+      dockerfile: Dockerfile
+    environment:
+      - userURL=${userURL}
+      - productURL=${productURL}
+      - paymentURL=${paymentURL}
+      - orderURL=${orderURL}
+    depends_on:
+      - user-service
+      - product-service
+      - payment-service
+      - order-service
+    ports:
+      - "8080:8080"
+
+volumes:
+  db_data:
